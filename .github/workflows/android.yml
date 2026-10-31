@@ -25,9 +25,9 @@ jobs:
 
       - name: Install Buildozer
         run: |
-          python3 -m venv ~/buildozer-venv
-          ~/buildozer-venv/bin/pip install \
-            buildozer setuptools cython==0.29.34
+          python3 -m venv --system-site-packages ~/buildozer-venv
+          ~/buildozer-venv/bin/pip install --upgrade pip
+          ~/buildozer-venv/bin/pip install buildozer setuptools cython==0.29.34
 
       - name: Build APK
         run: |
