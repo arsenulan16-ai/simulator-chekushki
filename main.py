@@ -1000,8 +1000,7 @@ def complete_level():
     win_time = pygame.time.get_ticks()
     scene = "win"
 
-
-def update_level():
+def update_level(dt):
     global angle, angular_speed
     global rope_length
 
@@ -1010,48 +1009,47 @@ def update_level():
     old_angle = angle
     old_length = rope_length
 
+    # Скорость относительно 60 FPS
+    step = min(dt * 60, 3)
+
     # Раскачивание влево
     if keys[pygame.K_a] or held("left"):
-        angular_speed -= 0.003
+        angular_speed -= 0.003 * step
 
     # Раскачивание вправо
     if keys[pygame.K_d] or held("right"):
-        angular_speed += 0.003
+        angular_speed += 0.003 * step
 
     # Укоротить верёвку
     if keys[pygame.K_w] or held("up"):
-        rope_length -= 3
+        rope_length -= 3 * step
 
     # Удлинить верёвку
     if keys[pygame.K_s] or held("down"):
-        rope_length += 3
+        rope_length += 3 * step
 
-    rope_length = max(
-        40,
-        min(800, rope_length)
-    )
+    rope_length = max(40, min(800, rope_length))
 
-    angular_speed -= (
-        0.003 * math.sin(angle)
-    )
+    # Гравитация
+    angular_speed -= 0.003 * math.sin(angle) * step
 
-    angular_speed *= 0.995
+    # Трение
+    angular_speed *= 0.995 ** step
 
-    angular_speed = max(
-        -0.06,
-        min(0.06, angular_speed)
-    )
+    # Ограничение скорости
+    angular_speed = max(-0.06, min(0.06, angular_speed))
 
-    angle += angular_speed
+    # Обновление положения
+    angle += angular_speed * step
 
+    # Столкновение с коробками
     if hits_box():
         angle = old_angle
         rope_length = old_length
         angular_speed = -angular_speed * 0.3
 
-    if get_player_rect().colliderect(
-        get_bottle_rect()
-    ):
+    # Проверка бутылки
+    if get_player_rect().colliderect(get_bottle_rect()):
         complete_level()
 
 # ==========================================
@@ -1748,7 +1746,7 @@ def handle_tap(pos):
 # ==========================================
 
 while running:
-    clock.tick(FPS)
+    dt = clock.tick(FPS) / 1000.0
 
     # Звук заставки один раз.
     if scene == "intro" and not intro_played:
@@ -1892,7 +1890,7 @@ while running:
         scene = "menu"
 
     if scene == "level":
-        update_level()
+        update_level(dt)
 
     if scene == "win":
         if (
