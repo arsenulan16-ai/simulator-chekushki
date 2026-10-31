@@ -29,10 +29,26 @@ jobs:
           ~/buildozer-venv/bin/pip install --upgrade pip
           ~/buildozer-venv/bin/pip install buildozer setuptools cython==0.29.34
 
+      
+      - name: Install Android SDK Build Tools
+        run: |
+          SDK="$HOME/.buildozer/android/platform/android-sdk"
+          mkdir -p "$SDK"
+
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            --sdk_root="$SDK" \
+            "platform-tools" \
+            "platforms;android-35" \
+            "build-tools;35.0.0" || true
+
+          ls -la "$SDK/build-tools/35.0.0"
+          test -f "$SDK/build-tools/35.0.0/aidl"
+
       - name: Build APK
         run: |
           export PATH="$HOME/buildozer-venv/bin:$PATH"
           buildozer -v android debug
+
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
