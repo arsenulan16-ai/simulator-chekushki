@@ -51,8 +51,20 @@ jobs:
       - name: Build APK
         run: |
           export PATH="$HOME/buildozer-venv/bin:$PATH"
-          buildozer -v android debug
 
+          SDK="$HOME/.buildozer/android/platform/android-sdk"
+          mkdir -p "$SDK/cmdline-tools/latest"
+
+          cp -a "$ANDROID_HOME/cmdline-tools/latest/." \
+            "$SDK/cmdline-tools/latest/"
+
+          chmod +x "$SDK/cmdline-tools/latest/bin/sdkmanager"
+
+          export ANDROID_HOME="$SDK"
+          export ANDROID_SDK_ROOT="$SDK"
+          export PATH="$SDK/cmdline-tools/latest/bin:$SDK/platform-tools:$PATH"
+
+          buildozer -v android debug
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
