@@ -167,10 +167,10 @@ def present():
         )
 
     else:
-        scaled = pygame.transform.smoothscale(
-            screen,
-            (game_w, game_h)
-        )
+        scaled = pygame.transform.scale(
+    screen,
+    (game_w, game_h)
+)
 
         display.blit(
             scaled,
@@ -1515,19 +1515,23 @@ def draw_scene(name):
         draw_win()
 
 
-def draw_fade():
+def draw_fade(dt):
     global fade_alpha
     global fade_phase, scene
+
+    # Полное затемнение за 0.35 секунды
+    fade_speed = 255 / 0.35
 
     if fade_phase == "out":
         draw_scene(fade_from)
 
         fade_alpha = min(
             255,
-            fade_alpha + 5
+            fade_alpha + fade_speed * dt
         )
 
-        if fade_alpha == 255:
+        if fade_alpha >= 255:
+            fade_alpha = 255
             fade_phase = "in"
 
     else:
@@ -1535,10 +1539,11 @@ def draw_fade():
 
         fade_alpha = max(
             0,
-            fade_alpha - 5
+            fade_alpha - fade_speed * dt
         )
 
-        if fade_alpha == 0:
+        if fade_alpha <= 0:
+            fade_alpha = 0
             scene = fade_to
 
     overlay = pygame.Surface(
@@ -1546,14 +1551,8 @@ def draw_fade():
         pygame.SRCALPHA
     )
 
-    overlay.fill(
-        (0, 0, 0, fade_alpha)
-    )
-
-    screen.blit(
-        overlay,
-        (0, 0)
-    )
+    overlay.fill((0, 0, 0, int(fade_alpha)))
+    screen.blit(overlay, (0, 0))
 
 # ==========================================
 # КНОПКА НАЗАД
@@ -1907,7 +1906,7 @@ while running:
     # ======================================
 
     if scene == "fade":
-        draw_fade()
+        draw_fade(dt)
     else:
         draw_scene(scene)
 
