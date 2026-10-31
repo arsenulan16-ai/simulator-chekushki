@@ -29,19 +29,13 @@ jobs:
           ~/buildozer-venv/bin/pip install --upgrade pip
           ~/buildozer-venv/bin/pip install buildozer setuptools cython==0.29.34
 
-      
-     
       - name: Fix Android SDK paths
         run: |
           SDK="$HOME/.buildozer/android/platform/android-sdk"
           mkdir -p "$SDK/tools/bin"
 
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-
-          if [ ! -f "$SDKMANAGER" ]; then
-            echo "ERROR: sdkmanager not found"
-            exit 1
-          fi
+          test -f "$SDKMANAGER"
 
           ln -sf "$SDKMANAGER" "$SDK/tools/bin/sdkmanager"
 
@@ -54,11 +48,10 @@ jobs:
           test -f "$SDK/build-tools/35.0.0/aidl"
           echo "Android SDK tools installed"
 
-           - name: Build APK
-           run: |
+      - name: Build APK
+        run: |
           export PATH="$HOME/buildozer-venv/bin:$PATH"
           buildozer -v android debug
-
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
