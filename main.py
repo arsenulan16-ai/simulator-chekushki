@@ -1,12 +1,12 @@
-
 import os
 import sys
 import json
 import math
+import random
 import pygame
 
 # ==========================================
-# СИМУЛЯТОР ЧЕКУШКИ MOBILE v1.0
+# СИМУЛЯТОР ЧЕКУШКИ MOBILE v1.2
 # ==========================================
 
 pygame.init()
@@ -122,7 +122,7 @@ def setup_display():
     offset_y = (dh - game_h) // 2
 
     pygame.display.set_caption(
-        "СИМУЛЯТОР ЧЕКУШКИ MOBILE v1.0"
+        "СИМУЛЯТОР ЧЕКУШКИ MOBILE v1.2"
     )
 
 
@@ -228,6 +228,10 @@ else:
     version_font = pygame.font.SysFont(
         "arial", 18
     )
+
+    studio_font = pygame.font.SysFont(
+    "arial", 58, bold=True
+)
 
 # ==========================================
 # ЗАГРУЗКА КАРТИНОК
@@ -351,6 +355,18 @@ skins_button = pygame.Rect(
 music_button = pygame.Rect(
     370, 325, 160, 45
 )
+
+prank_button = pygame.Rect(
+    625, 15, 260, 50
+)
+
+# Кнопки выбора режима и бесконечного режима
+classic_mode_button = pygame.Rect(170, 15, 260, 48)
+endless_mode_button = pygame.Rect(620, 15, 260, 48)
+endless_play_button = pygame.Rect(300, 205, 300, 90)
+endless_left_button = pygame.Rect(25, 365, 100, 100)
+endless_right_button = pygame.Rect(145, 365, 100, 100)
+endless_restart_button = pygame.Rect(330, 285, 240, 60)
 
 back_button = pygame.Rect(
     15, 15, 135, 50
@@ -535,6 +551,7 @@ def load_sound(filename):
 
 intro_sound = load_sound("intro.mp3")
 win_sound = load_sound("win.mp3")
+prank_sound = load_sound("prank.mp3")
 
 TRACKS = [
     ("Музыка 1", "music1.mp3"),
@@ -591,30 +608,56 @@ SKINS = [
         "price": 0
     },
     {
+            "name": "рис",
+            "file": "рис.png",
+            "price": 400
+        },
+    {
         "name": "Красный",
         "file": "skin_red.png",
         "price": 20
+    },
+        {
+        "name": "злостность",
+        "file": "mem.png",
+        "price": 220
     },
     {
         "name": "Зелёный",
         "file": "skin_green.png",
         "price": 40
     },
+        {
+        "name": "наркоман",
+        "file": "skin_meme.png",
+        "price": 350
+    },
     {
         "name": "Испуганость",
         "file": "skin_scared.png",
-        "price": 30
+        "price": 150
+    },
+        {
+        "name": "котость",
+        "file": "котость.png",
+        "price": 500
     },
     {
         "name": "Серьёзность",
         "file": "skin_serious.png",
-        "price": 40
+        "price": 200
+    },
+        {
+        "name": "чекушенок",
+        "file": "чекушенок.png",
+        "price": 600
     },
     {
         "name": "Артур",
         "file": "skin_artur.png",
-        "price": 60
+        "price": 500
     }
+    
 ]
 
 
@@ -775,11 +818,28 @@ def load_save():
 def reset_shop():
     global coins, owned
     global selected_skin, shop_index
+    global endless_record
 
     coins = 0
     owned = [0]
     selected_skin = 0
     shop_index = 0
+
+    # Сбрасываем рекорд бесконечного режима
+    endless_record = 0
+
+    try:
+        with open(
+            endless_record_path,
+            "w",
+            encoding="utf-8"
+        ) as file:
+            json.dump(
+                {"record": 0},
+                file
+            )
+    except OSError as error:
+        print("Ошибка сброса рекорда:", error)
 
     save_data()
 
@@ -839,11 +899,56 @@ LEVELS = {
         "anchor": (390, 35),
         "length": 315,
         "bottle": (735, 245)
+    },
+
+    # УРОВЕНЬ 6 — кролик и деревянные ящики
+    6: {
+        "boxes": [
+            pygame.Rect(0, 0, 259, 109),
+            pygame.Rect(697, 0, 104, 32),
+            pygame.Rect(491, 268, 147, 126),
+            pygame.Rect(636, 171, 264, 223)
+        ],
+        "anchor": (238, 130),
+        "length": 264,
+        "bottle": (820, 210)
+    },
+
+    # УРОВЕНЬ 7 — игрок начинает СВЕРХУ платформы.
+    7: {
+        "boxes": [
+            pygame.Rect(70, 130, 270, 30),    # стартовая верхняя платформа
+            pygame.Rect(395, 225, 155, 85),  # центральная платформа
+            pygame.Rect(575, 95, 115, 35),   # верхняя перемычка
+            pygame.Rect(710, 175, 190, 145), # правая платформа с чекушкой
+            pygame.Rect(430, 390, 190, 110)  # нижнее препятствие
+        ],
+        # Центр игрока (205, 80): при размере скина 75x100
+        # его ноги ровно касаются верхней грани платформы y=130.
+        "anchor": (205, 10),
+        "length": 70,
+        "bottle": (810, 95)
+    },
+
+    # УРОВЕНЬ 8 — два персонажа и стопка ящиков
+    8: {
+        "boxes": [
+            pygame.Rect(115, 0, 187, 70),
+            pygame.Rect(637, 0, 90, 35),
+            pygame.Rect(722, 104, 178, 153),
+            pygame.Rect(576, 154, 167, 136)
+        ],
+        "anchor": (210, 25),
+        "length": 375,
+        "bottle": (820, 165)
     }
 }
 
-# Временные уровни до v1.2
+# Временные уровни; настоящие уровни 6–8 не перезаписываем.
 for number in range(5, 21):
+    if number in (6, 7, 8):
+        continue
+
     LEVELS[number] = {
         "boxes": [
             pygame.Rect(0, 0, 220, 100),
@@ -860,7 +965,8 @@ for number in range(5, 21):
 
 
 def get_level_reward(number):
-    return min(number * 10, 40)
+    # Уровни 1–7: по 10 монет за номер уровня; с 7-го — максимум 70.
+    return min(number * 10, 70)
 
 
 level_number = 1
@@ -902,11 +1008,30 @@ def get_player_rect():
 
 
 def get_bottle_rect():
-    x, y = LEVELS[current_level]["bottle"]
+    """Ставит чекушку ровно на верх подходящего ящика."""
+    x, fallback_y = LEVELS[current_level]["bottle"]
+    bottle_width = 40
+    bottle_height = 75
+    center_x = x + bottle_width // 2
 
-    return pygame.Rect(
-        x, y, 40, 75
-    )
+    # Выбираем ящик, который находится под чекушкой по горизонтали.
+    # Высота из LEVELS задаёт желаемую нижнюю точку бутылки,
+    # поэтому выбираем верх ящика, ближайший к этой точке.
+    platforms = [
+        box for box in get_boxes()
+        if box.left <= center_x <= box.right
+    ]
+
+    if platforms:
+        platform = min(
+            platforms,
+            key=lambda box: abs(box.top - (fallback_y + bottle_height))
+        )
+        y = platform.top - bottle_height
+    else:
+        y = fallback_y
+
+    return pygame.Rect(x, y, bottle_width, bottle_height)
 
 
 def reset_level(number):
@@ -934,14 +1059,22 @@ def reset_level(number):
 
 
 def hits_box():
-    player_rect = get_player_rect().inflate(
-        -24, -12
-    )
+    """Проверяет столкновение игрока со всеми платформами уровня."""
+    player_rect = get_player_rect()
 
-    return any(
-        player_rect.colliderect(box)
-        for box in get_boxes()
-    )
+    if current_level == 7:
+        # На новом 7-м уровне столкновения включены для каждой платформы.
+        # Нижняя правая платформа тоже является препятствием, но декорации
+        # фона и персонажи внизу в список boxes не входят.
+        player_rect = player_rect.inflate(4, 4)
+        return any(player_rect.colliderect(box) for box in get_boxes())
+
+    # На других уровнях немного учитываем прозрачные края скинов.
+    player_rect = player_rect.inflate(-8, -6)
+    for box in get_boxes():
+        if player_rect.colliderect(box):
+            return True
+    return False
 
 
 def attach_rope(pos):
@@ -1039,16 +1172,33 @@ def update_level(dt):
     # Ограничение скорости
     angular_speed = max(-0.06, min(0.06, angular_speed))
 
-    # Обновление положения
-    angle += angular_speed * step
+    # Проверяем весь путь движения маленькими шагами,
+    # чтобы игрок не пролетал сквозь тонкие ящики.
+    new_angle = angle + angular_speed * step
+    new_length = rope_length
 
-    # Столкновение с коробками
-    if hits_box():
+    travel = abs(new_angle - old_angle) * max(old_length, new_length)
+    samples = max(1, min(60, int(travel / 3) + 1))
+    collision = False
+
+    for sample in range(1, samples + 1):
+        t = sample / samples
+        angle = old_angle + (new_angle - old_angle) * t
+        rope_length = old_length + (new_length - old_length) * t
+
+        if hits_box():
+            collision = True
+            break
+
+    if collision:
         angle = old_angle
         rope_length = old_length
         angular_speed = -angular_speed * 0.3
+    else:
+        angle = new_angle
+        rope_length = new_length
 
-    # Проверка бутылки
+    # Проверка чекушки
     if get_player_rect().colliderect(get_bottle_rect()):
         complete_level()
 
@@ -1060,6 +1210,65 @@ INTRO_DURATION = 9000
 
 intro_start = pygame.time.get_ticks()
 intro_played = False
+# ==========================================
+# ЗАСТАВКА PIXEL FORGE
+# ==========================================
+
+STUDIO_DURATION = 4000
+studio_start = pygame.time.get_ticks()
+
+def draw_studio_intro():
+    screen.fill((5, 5, 12))
+
+    elapsed = pygame.time.get_ticks() - studio_start
+
+    # Плавное появление и исчезновение
+    if elapsed < 1000:
+        alpha = int(255 * elapsed / 1000)
+    elif elapsed > 3000:
+        alpha = int(255 * (4000 - elapsed) / 1000)
+    else:
+        alpha = 255
+
+    alpha = max(0, min(255, alpha))
+
+    # Название студии
+    logo = studio_font.render(
+        "PIXEL FORGE",
+        True,
+        (255, 255, 255)
+    )
+
+    logo.set_alpha(alpha)
+
+    screen.blit(
+        logo,
+        logo.get_rect(center=(450, 250))
+    )
+
+    # Тонкая линия под названием
+    line_surface = pygame.Surface(
+        (300, 3),
+        pygame.SRCALPHA
+    )
+
+    line_surface.fill((0, 180, 255, alpha))
+
+    screen.blit(
+        line_surface,
+        (300, 295)
+    )
+
+    # Затемнение в конце
+    if elapsed > 3000:
+        darkness = pygame.Surface(
+            (WIDTH, HEIGHT)
+        )
+        darkness.fill(BLACK)
+        darkness.set_alpha(
+            int(255 * (elapsed - 3000) / 1000)
+        )
+        screen.blit(darkness, (0, 0))
 
 
 def draw_intro():
@@ -1128,11 +1337,18 @@ def draw_menu():
         "МУЗЫКА"
     )
 
+    draw_button(
+        prank_button,
+        "ЗАЧИСЛИТЬ 1500 МОНЕТ"
+    )
+
     draw_back()
 
     draw_text(
-        "-v.1.0",
+        "-v.1.2",
         version_font,
+        
+                
         WHITE,
         (450, 480)
     )
@@ -1145,6 +1361,8 @@ def draw_levels():
     screen.fill(BLUE)
 
     draw_back()
+    draw_button(classic_mode_button, "ОБЫЧНЫЙ РЕЖИМ")
+    draw_button(endless_mode_button, "БЕСКОНЕЧНЫЙ")
 
     draw_text(
         "ВЫБОР УРОВНЯ",
@@ -1467,7 +1685,332 @@ for i in range(45):
 # ПЕРЕХОДЫ МЕЖДУ ЭКРАНАМИ
 # ==========================================
 
-scene = "intro"
+# ==========================================
+# БЕСКОНЕЧНЫЙ РЕЖИМ
+# ==========================================
+
+endless_record_path = os.path.join(
+    SAVE_DIR,
+    "endless_record.json"
+)
+
+try:
+    with open(endless_record_path, "r", encoding="utf-8") as f:
+        endless_record = max(
+            0,
+            int(json.load(f).get("record", 0))
+        )
+except (OSError, ValueError, TypeError, json.JSONDecodeError):
+    endless_record = 0
+
+# Высота измеряется в пикселях
+endless_start_y = 350.0
+endless_score = 0
+endless_total_scroll = 0.0
+
+endless_x = 430.0
+endless_y = 350.0
+endless_vy = 0.0
+
+endless_platforms = []
+endless_game_over = False
+
+
+def save_endless_record():
+    try:
+        with open(
+            endless_record_path,
+            "w",
+            encoding="utf-8"
+        ) as f:
+            json.dump(
+                {"record": endless_record},
+                f
+            )
+    except OSError:
+        pass
+
+
+def reset_endless():
+    global endless_score
+    global endless_x, endless_y, endless_vy
+    global endless_platforms, endless_game_over
+    global endless_total_scroll
+
+    endless_score = 0
+    endless_total_scroll = 0.0
+
+    endless_x = 430.0
+    endless_y = endless_start_y
+    endless_vy = 0.0
+
+    endless_game_over = False
+
+    endless_platforms = [
+        pygame.Rect(365, 420, 170, 17),
+        pygame.Rect(85, 325, 150, 17),
+        pygame.Rect(650, 230, 150, 17),
+        pygame.Rect(315, 135, 150, 17),
+        pygame.Rect(80, 40, 150, 17),
+    ]
+
+
+def update_endless(dt):
+    global endless_total_scroll
+    global endless_x, endless_y, endless_vy
+    global endless_score, endless_record
+    global endless_game_over, endless_platforms
+
+    if endless_game_over:
+        return
+
+    step = min(dt * 60.0, 2.5)
+
+    # Запоминаем положение ног игрока до движения
+    old_bottom = endless_y + 42
+
+    keys = pygame.key.get_pressed()
+
+    # Движение влево и вправо
+    if keys[pygame.K_LEFT] or keys[pygame.K_a]:
+        endless_x -= 5.0 * step
+
+    if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
+        endless_x += 5.0 * step
+
+    endless_x = max(
+        0,
+        min(WIDTH - 38, endless_x)
+    )
+
+    # Гравитация
+    endless_vy += 0.42 * step
+    endless_y += endless_vy * step
+
+    new_bottom = endless_y + 42
+
+    # Проверка приземления на платформы
+    if endless_vy > 0:
+        for platform in endless_platforms:
+
+            player_left = endless_x + 4
+            player_right = endless_x + 34
+
+            if (
+                old_bottom <= platform.top
+                and new_bottom >= platform.top
+                and player_right > platform.left
+                and player_left < platform.right
+            ):
+                endless_y = platform.top - 42
+                endless_vy = -13.0
+                break
+
+    # Камера плавно следует за игроком вверх.
+    # Когда игрок поднимается выше отметки 205,
+    # игрок остаётся на этой высоте, а платформы
+    # перемещаются вниз.
+    if endless_y < 205:
+        shift = 205 - endless_y
+
+        endless_total_scroll += shift
+        endless_y = 205.0
+
+        for platform in endless_platforms:
+            platform.y += round(shift)
+
+    # Высота в настоящих пикселях.
+    # Учитывается и подъём камеры.
+    current_height = max(
+        0,
+        int(
+            endless_start_y
+            - endless_y
+            + endless_total_scroll
+        )
+    )
+
+    # Записываем максимальную достигнутую высоту
+    if current_height > endless_score:
+        endless_score = current_height
+
+    # Обновляем рекорд
+    if endless_score > endless_record:
+        endless_record = endless_score
+        save_endless_record()
+
+    # Создаём новую платформу выше самой высокой
+    if endless_platforms:
+        highest = min(
+            endless_platforms,
+            key=lambda p: p.top
+        )
+
+        if highest.top > -35:
+            previous_x = highest.x
+
+            min_x = max(
+                25,
+                previous_x - 240
+            )
+
+            max_x = min(
+                WIDTH - 175,
+                previous_x + 240
+            )
+
+            next_x = random.randint(
+                min_x,
+                max_x
+            )
+
+            vertical_gap = random.randint(
+                65,
+                85
+            )
+
+            endless_platforms.append(
+                pygame.Rect(
+                    next_x,
+                    highest.top - vertical_gap,
+                    150,
+                    17
+                )
+            )
+
+    # Удаляем платформы, ушедшие за экран вниз
+    endless_platforms = [
+        platform
+        for platform in endless_platforms
+        if platform.top < HEIGHT + 30
+    ]
+
+    # Если игрок упал ниже экрана — проигрыш
+    if endless_y > HEIGHT + 35:
+        endless_game_over = True
+
+
+def draw_endless_menu():
+    screen.fill(BLUE)
+
+    draw_back()
+
+    draw_text(
+        "БЕСКОНЕЧНЫЙ РЕЖИМ",
+        title_font,
+        WHITE,
+        (450, 105)
+    )
+
+    draw_button(
+        endless_play_button,
+        "ИГРАТЬ"
+    )
+
+    draw_text(
+        f"РЕКОРД: {endless_record} px",
+        small_font,
+        YELLOW,
+        (450, 365)
+    )
+
+
+def draw_endless_game():
+    screen.fill((115, 190, 245))
+
+    # Платформы
+    for platform in endless_platforms:
+        pygame.draw.rect(
+            screen,
+            GREEN,
+            platform,
+            border_radius=7
+        )
+
+        pygame.draw.rect(
+            screen,
+            DARK_GREEN,
+            platform,
+            3,
+            border_radius=7
+        )
+
+    # Персонаж
+    player_image = pygame.transform.smoothscale(
+        skin_images[selected_skin],
+        (38, 42)
+    )
+
+    screen.blit(
+        player_image,
+        (
+            int(endless_x),
+            int(endless_y)
+        )
+    )
+
+    # Высота и рекорд в пикселях
+    draw_text(
+        f"РЕКОРД: {endless_record} px",
+        small_font,
+        YELLOW,
+        (755, 28)
+    )
+
+    draw_text(
+        f"ВЫСОТА: {endless_score} px",
+        small_font,
+        YELLOW,
+        (450, 245)
+    )
+
+    # Кнопки управления
+    draw_button(
+        endless_left_button,
+        "◀"
+    )
+
+    draw_button(
+        endless_right_button,
+        "▶"
+    )
+
+    # Экран проигрыша
+    if endless_game_over:
+        shade = pygame.Surface(
+            (WIDTH, HEIGHT),
+            pygame.SRCALPHA
+        )
+
+        shade.fill(
+            (0, 0, 0, 155)
+        )
+
+        screen.blit(
+            shade,
+            (0, 0)
+        )
+
+        draw_text(
+            "ИГРА ОКОНЧЕНА",
+            title_font,
+            WHITE,
+            (450, 190)
+        )
+
+        draw_text(
+            f"ТВОЯ ВЫСОТА: {endless_score} px",
+            small_font,
+            YELLOW,
+            (450, 245)
+        )
+
+        draw_button(
+            endless_restart_button,
+            "ЕЩЁ РАЗ"
+        )                                        
+scene = "studio_intro"
+prank_start = 0
 
 fade_from = "menu"
 fade_to = "levels"
@@ -1493,7 +2036,10 @@ def start_fade(source, target):
 
 
 def draw_scene(name):
-    if name == "intro":
+    if name == "studio_intro":
+        draw_studio_intro()
+
+    elif name == "intro":
         draw_intro()
 
     elif name == "menu":
@@ -1501,6 +2047,12 @@ def draw_scene(name):
 
     elif name == "levels":
         draw_levels()
+
+    elif name == "endless_menu":
+        draw_endless_menu()
+
+    elif name == "endless":
+        draw_endless_game()
 
     elif name == "shop":
         draw_shop()
@@ -1513,6 +2065,15 @@ def draw_scene(name):
 
     elif name == "win":
         draw_win()
+
+    elif name == "prank":
+        screen.fill(BLACK)
+        draw_text(
+            "РЕАЛЬНО ПОВЕРИЛ",
+            title_font,
+            WHITE,
+            (WIDTH // 2, HEIGHT // 2)
+        )
 
 
 def draw_fade(dt):
@@ -1585,6 +2146,12 @@ def go_back():
             "menu"
         )
 
+    elif scene == "endless_menu":
+        start_fade("endless_menu", "levels")
+
+    elif scene == "endless":
+        start_fade("endless", "endless_menu")
+
     elif scene in ("shop", "music"):
         start_fade(
             scene,
@@ -1603,6 +2170,7 @@ def handle_tap(pos):
     global coins
     global music_index
     global music_enabled
+    global scene, prank_start
 
     if not in_game(pos):
         return
@@ -1614,7 +2182,9 @@ def handle_tap(pos):
             "levels",
             "shop",
             "music",
-            "level"
+            "level",
+            "endless_menu",
+            "endless"
         )
         and back_button.collidepoint(pos)
     ):
@@ -1623,6 +2193,13 @@ def handle_tap(pos):
 
     # ГЛАВНОЕ МЕНЮ
     if scene == "menu":
+
+        if prank_button.collidepoint(pos):
+            scene = "prank"
+            prank_start = pygame.time.get_ticks()
+            if prank_sound:
+                prank_sound.play()
+            return
 
         if play_button.collidepoint(pos):
             start_fade(
@@ -1644,6 +2221,12 @@ def handle_tap(pos):
 
     # ВЫБОР УРОВНЯ
     elif scene == "levels":
+
+        if classic_mode_button.collidepoint(pos):
+            return
+        elif endless_mode_button.collidepoint(pos):
+            start_fade("levels", "endless_menu")
+            return
 
         if left_button.collidepoint(pos):
             level_number = max(
@@ -1668,6 +2251,20 @@ def handle_tap(pos):
                 "levels",
                 "level"
             )
+
+    elif scene == "endless_menu":
+        if endless_play_button.collidepoint(pos):
+            reset_endless()
+            start_fade("endless_menu", "endless")
+
+    elif scene == "endless":
+        global endless_x
+        if endless_game_over and endless_restart_button.collidepoint(pos):
+            reset_endless()
+        elif not endless_game_over and endless_left_button.collidepoint(pos):
+            endless_x = max(0, endless_x - 65)
+        elif not endless_game_over and endless_right_button.collidepoint(pos):
+            endless_x = min(WIDTH - 38, endless_x + 65)
 
     # МАГАЗИН
     elif scene == "shop":
@@ -1744,7 +2341,18 @@ def handle_tap(pos):
 # ГЛАВНЫЙ ЦИКЛ
 # ==========================================
 
+# Запускаем отсчёт заставки непосредственно перед главным циклом.
+studio_start = pygame.time.get_ticks()
+
 while running:
+    if scene == "studio_intro":
+        elapsed = pygame.time.get_ticks() - studio_start
+
+        if elapsed >= STUDIO_DURATION:
+            scene = "intro"
+            intro_start = pygame.time.get_ticks()
+            intro_played = False
+
     dt = clock.tick(FPS) / 1000.0
 
     # Звук заставки один раз.
@@ -1888,8 +2496,17 @@ while running:
 
         scene = "menu"
 
+    if scene == "prank":
+        if pygame.time.get_ticks() - prank_start >= 5000:
+            if prank_sound:
+                prank_sound.stop()
+            scene = "menu"
+
     if scene == "level":
         update_level(dt)
+
+    if scene == "endless":
+        update_endless(dt)
 
     if scene == "win":
         if (
