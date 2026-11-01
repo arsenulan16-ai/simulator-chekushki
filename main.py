@@ -1706,6 +1706,7 @@ except (OSError, ValueError, TypeError, json.JSONDecodeError):
 # Высота измеряется в пикселях
 endless_start_y = 350.0
 endless_score = 0
+endless_rewarded_milestones = 0
 endless_total_scroll = 0.0
 
 endless_x = 430.0
@@ -1733,11 +1734,13 @@ def save_endless_record():
 
 def reset_endless():
     global endless_score
+    global endless_rewarded_milestones
     global endless_x, endless_y, endless_vy
     global endless_platforms, endless_game_over
     global endless_total_scroll
 
     endless_score = 0
+    endless_rewarded_milestones = 0
     endless_total_scroll = 0.0
 
     endless_x = 430.0
@@ -1760,6 +1763,8 @@ def update_endless(dt):
     global endless_x, endless_y, endless_vy
     global endless_score, endless_record
     global endless_game_over, endless_platforms
+    global endless_rewarded_milestones
+    global coins
 
     if endless_game_over:
         return
@@ -1806,10 +1811,7 @@ def update_endless(dt):
                 endless_vy = -13.0
                 break
 
-    # Камера плавно следует за игроком вверх.
-    # Когда игрок поднимается выше отметки 205,
-    # игрок остаётся на этой высоте, а платформы
-    # перемещаются вниз.
+    # Камера следует за игроком вверх
     if endless_y < 205:
         shift = 205 - endless_y
 
@@ -1819,8 +1821,7 @@ def update_endless(dt):
         for platform in endless_platforms:
             platform.y += round(shift)
 
-    # Высота в настоящих пикселях.
-    # Учитывается и подъём камеры.
+    # Высота в настоящих пикселях
     current_height = max(
         0,
         int(
@@ -1833,6 +1834,20 @@ def update_endless(dt):
     # Записываем максимальную достигнутую высоту
     if current_height > endless_score:
         endless_score = current_height
+
+    # 150 монет за каждые 20 000 пикселей
+    reached_milestones = endless_score // 20000
+
+    if reached_milestones > endless_rewarded_milestones:
+        new_milestones = (
+            reached_milestones
+            - endless_rewarded_milestones
+        )
+
+        coins += new_milestones * 150
+        endless_rewarded_milestones = reached_milestones
+
+        save_data()
 
     # Обновляем рекорд
     if endless_score > endless_record:
@@ -1917,6 +1932,8 @@ def draw_endless_menu():
 
 def draw_endless_game():
     screen.fill((115, 190, 245))
+        # Кнопка НАЗАД
+    draw_back()
 
     # Платформы
     for platform in endless_platforms:
@@ -1949,7 +1966,7 @@ def draw_endless_game():
         )
     )
 
-    # Высота и рекорд в пикселях
+    # Высота и рекорд
     draw_text(
         f"РЕКОРД: {endless_record} px",
         small_font,
@@ -2008,7 +2025,7 @@ def draw_endless_game():
         draw_button(
             endless_restart_button,
             "ЕЩЁ РАЗ"
-        )                                        
+        )
 scene = "studio_intro"
 prank_start = 0
 
