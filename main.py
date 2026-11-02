@@ -609,7 +609,7 @@ SKINS = [
     },
     {
             "name": "рис",
-            "file": "рис.png",
+            "file": "ris.png",
             "price": 400
         },
     {
@@ -639,7 +639,7 @@ SKINS = [
     },
         {
         "name": "котость",
-        "file": "котость.png",
+        "file": "cat.png",
         "price": 500
     },
     {
@@ -649,7 +649,7 @@ SKINS = [
     },
         {
         "name": "чекушенок",
-        "file": "чекушенок.png",
+        "file": "hek.png",
         "price": 600
     },
     {
@@ -1703,7 +1703,6 @@ try:
 except (OSError, ValueError, TypeError, json.JSONDecodeError):
     endless_record = 0
 
-# Высота измеряется в пикселях
 endless_start_y = 350.0
 endless_score = 0
 endless_rewarded_milestones = 0
@@ -1715,6 +1714,13 @@ endless_vy = 0.0
 
 endless_platforms = []
 endless_game_over = False
+
+# Усиленный прыжок
+endless_jump_boost_time = 0.0
+endless_jump_cooldown = 0.0
+
+# Кнопка усиления справа
+endless_jump_button = pygame.Rect(790, 180, 75, 75)
 
 
 def save_endless_record():
@@ -1738,6 +1744,8 @@ def reset_endless():
     global endless_x, endless_y, endless_vy
     global endless_platforms, endless_game_over
     global endless_total_scroll
+    global endless_jump_boost_time
+    global endless_jump_cooldown
 
     endless_score = 0
     endless_rewarded_milestones = 0
@@ -1748,6 +1756,9 @@ def reset_endless():
     endless_vy = 0.0
 
     endless_game_over = False
+
+    endless_jump_boost_time = 0.0
+    endless_jump_cooldown = 0.0
 
     endless_platforms = [
         pygame.Rect(365, 420, 170, 17),
@@ -1764,19 +1775,30 @@ def update_endless(dt):
     global endless_score, endless_record
     global endless_game_over, endless_platforms
     global endless_rewarded_milestones
+    global endless_jump_boost_time
+    global endless_jump_cooldown
     global coins
+
+    # Таймеры усиления и перезарядки
+    endless_jump_boost_time = max(
+        0.0,
+        endless_jump_boost_time - dt
+    )
+
+    endless_jump_cooldown = max(
+        0.0,
+        endless_jump_cooldown - dt
+    )
 
     if endless_game_over:
         return
 
     step = min(dt * 60.0, 2.5)
 
-    # Запоминаем положение ног игрока до движения
     old_bottom = endless_y + 42
 
     keys = pygame.key.get_pressed()
 
-    # Движение влево и вправо
     if keys[pygame.K_LEFT] or keys[pygame.K_a]:
         endless_x -= 5.0 * step
 
@@ -1788,13 +1810,11 @@ def update_endless(dt):
         min(WIDTH - 38, endless_x)
     )
 
-    # Гравитация
     endless_vy += 0.42 * step
     endless_y += endless_vy * step
 
     new_bottom = endless_y + 42
 
-    # Проверка приземления на платформы
     if endless_vy > 0:
         for platform in endless_platforms:
 
@@ -1808,10 +1828,15 @@ def update_endless(dt):
                 and player_left < platform.right
             ):
                 endless_y = platform.top - 42
-                endless_vy = -13.0
+
+                # Усиленный прыжок
+                if endless_jump_boost_time > 0:
+                    endless_vy = -26.0
+                else:
+                    endless_vy = -13.0
+
                 break
 
-    # Камера следует за игроком вверх
     if endless_y < 205:
         shift = 205 - endless_y
 
@@ -1821,7 +1846,6 @@ def update_endless(dt):
         for platform in endless_platforms:
             platform.y += round(shift)
 
-    # Высота в настоящих пикселях
     current_height = max(
         0,
         int(
@@ -1831,7 +1855,6 @@ def update_endless(dt):
         )
     )
 
-    # Записываем максимальную достигнутую высоту
     if current_height > endless_score:
         endless_score = current_height
 
@@ -1849,12 +1872,10 @@ def update_endless(dt):
 
         save_data()
 
-    # Обновляем рекорд
     if endless_score > endless_record:
         endless_record = endless_score
         save_endless_record()
 
-    # Создаём новую платформу выше самой высокой
     if endless_platforms:
         highest = min(
             endless_platforms,
@@ -1893,14 +1914,12 @@ def update_endless(dt):
                 )
             )
 
-    # Удаляем платформы, ушедшие за экран вниз
     endless_platforms = [
         platform
         for platform in endless_platforms
         if platform.top < HEIGHT + 30
     ]
 
-    # Если игрок упал ниже экрана — проигрыш
     if endless_y > HEIGHT + 35:
         endless_game_over = True
 
@@ -1932,7 +1951,7 @@ def draw_endless_menu():
 
 def draw_endless_game():
     screen.fill((115, 190, 245))
-        # Кнопка НАЗАД
+
     draw_back()
 
     # Платформы
@@ -1966,7 +1985,6 @@ def draw_endless_game():
         )
     )
 
-    # Высота и рекорд
     draw_text(
         f"РЕКОРД: {endless_record} px",
         small_font,
@@ -1981,7 +1999,7 @@ def draw_endless_game():
         (450, 245)
     )
 
-    # Кнопки управления
+    # Кнопки движения
     draw_button(
         endless_left_button,
         "◀"
@@ -1992,7 +2010,37 @@ def draw_endless_game():
         "▶"
     )
 
-    # Экран проигрыша
+    # Кнопка усиленного прыжка
+    if endless_jump_cooldown > 0:
+        button_color = (75, 75, 75)
+        arrow_color = (145, 145, 145)
+    else:
+        button_color = GREEN
+        arrow_color = WHITE
+
+    pygame.draw.rect(
+        screen,
+        button_color,
+        endless_jump_button,
+        border_radius=15
+    )
+
+    pygame.draw.rect(
+        screen,
+        DARK_GREEN,
+        endless_jump_button,
+        3,
+        border_radius=15
+    )
+
+    draw_text(
+        "↑",
+        big_font,
+        arrow_color,
+        endless_jump_button.center
+    )
+
+    # Проигрыш
     if endless_game_over:
         shade = pygame.Surface(
             (WIDTH, HEIGHT),
@@ -2188,6 +2236,9 @@ def handle_tap(pos):
     global music_index
     global music_enabled
     global scene, prank_start
+    global endless_x
+    global endless_jump_boost_time
+    global endless_jump_cooldown
 
     if not in_game(pos):
         return
@@ -2214,48 +2265,36 @@ def handle_tap(pos):
         if prank_button.collidepoint(pos):
             scene = "prank"
             prank_start = pygame.time.get_ticks()
+
             if prank_sound:
                 prank_sound.play()
+
             return
 
         if play_button.collidepoint(pos):
-            start_fade(
-                "menu",
-                "levels"
-            )
+            start_fade("menu", "levels")
 
         elif skins_button.collidepoint(pos):
-            start_fade(
-                "menu",
-                "shop"
-            )
+            start_fade("menu", "shop")
 
         elif music_button.collidepoint(pos):
-            start_fade(
-                "menu",
-                "music"
-            )
+            start_fade("menu", "music")
 
     # ВЫБОР УРОВНЯ
     elif scene == "levels":
 
         if classic_mode_button.collidepoint(pos):
             return
+
         elif endless_mode_button.collidepoint(pos):
             start_fade("levels", "endless_menu")
             return
 
         if left_button.collidepoint(pos):
-            level_number = max(
-                1,
-                level_number - 1
-            )
+            level_number = max(1, level_number - 1)
 
         elif right_button.collidepoint(pos):
-            level_number = min(
-                20,
-                level_number + 1
-            )
+            level_number = min(20, level_number + 1)
 
         elif math.hypot(
             pos[0] - 450,
@@ -2263,25 +2302,49 @@ def handle_tap(pos):
         ) <= 75:
 
             reset_level(level_number)
+            start_fade("levels", "level")
 
-            start_fade(
-                "levels",
-                "level"
-            )
-
+    # МЕНЮ БЕСКОНЕЧНОГО РЕЖИМА
     elif scene == "endless_menu":
+
         if endless_play_button.collidepoint(pos):
             reset_endless()
             start_fade("endless_menu", "endless")
 
+    # БЕСКОНЕЧНЫЙ РЕЖИМ
     elif scene == "endless":
-        global endless_x
-        if endless_game_over and endless_restart_button.collidepoint(pos):
+
+        # Кнопка усиленного прыжка
+        if endless_jump_button.collidepoint(pos):
+            if (
+                not endless_game_over
+                and endless_jump_cooldown <= 0
+            ):
+                endless_jump_boost_time = 6.0
+                endless_jump_cooldown = 20.5
+
+            return
+
+        if (
+            endless_game_over
+            and endless_restart_button.collidepoint(pos)
+        ):
             reset_endless()
-        elif not endless_game_over and endless_left_button.collidepoint(pos):
+
+        elif (
+            not endless_game_over
+            and endless_left_button.collidepoint(pos)
+        ):
             endless_x = max(0, endless_x - 65)
-        elif not endless_game_over and endless_right_button.collidepoint(pos):
-            endless_x = min(WIDTH - 38, endless_x + 65)
+
+        elif (
+            not endless_game_over
+            and endless_right_button.collidepoint(pos)
+        ):
+            endless_x = min(
+                WIDTH - 38,
+                endless_x + 65
+            )
 
     # МАГАЗИН
     elif scene == "shop":
@@ -2306,16 +2369,11 @@ def handle_tap(pos):
                 save_data()
 
             else:
-                price = SKINS[
-                    shop_index
-                ]["price"]
+                price = SKINS[shop_index]["price"]
 
                 if coins >= price:
                     coins -= price
-                    owned.append(
-                        shop_index
-                    )
-
+                    owned.append(shop_index)
                     selected_skin = shop_index
                     save_data()
 
